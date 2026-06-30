@@ -1,0 +1,6 @@
+INICIO 20260630_033459_001            modo=PRUEBA     ruta=/home/FMRAMIREZ/salida/conciliacion_20260630_033459_001.json log=/home/FMRAMIREZ/salida/conciliacion_20260630_033459_001.json.log
+DBG cuenta=11010101                 cc=CC002               
+DBG cuenta=11020101                 cc=CC003               
+DBG cuenta=11030101                 cc=CC001               
+JSON generado en /home/FMRAMIREZ/salida/conciliacion_20260630_033459_001.json cuentas=3
+FIN 20260630_033459_001            estado=PARCIAL        

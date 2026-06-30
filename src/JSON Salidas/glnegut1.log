@@ -1,0 +1,27 @@
+PASS PARCIAL saldoInicial
+PASS PARCIAL saldoFinalCalc
+PASS PARCIAL saldoFinalConc
+PASS PARCIAL difNeta
+PASS PARCIAL excedeTol
+PASS PARCIAL estado
+PASS PARCIAL incidente
+PASS PARCIAL incCod
+PASS CONC saldoInicial
+PASS CONC difNeta impl
+PASS CONC difNeta
+PASS CONC estado
+PASS CONC sin incidente
+PASS NOCONC saldoFinalConc
+PASS NOCONC difNeta
+PASS NOCONC excedeTol
+PASS NOCONC estado
+PASS NOCONC incidente
+PASS NOCONC incCod
+PASS TOT procesadas
+PASS TOT conciliadas
+PASS TOT con dif
+PASS TOT sum dif
+PASS HASH md5 demo
+PASS HASH longitud 32
+RESULTADO pass=25 fail=0
+ESTADO OK

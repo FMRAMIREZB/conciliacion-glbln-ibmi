@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 *.log
+# Evidencias IBM i del taller (excepcion a *.log)
+!src/JSON Salidas/
+!src/JSON Salidas/*.log
 *.tmp
 *.swp
 *.swo
