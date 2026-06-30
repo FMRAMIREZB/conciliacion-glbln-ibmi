@@ -1,0 +1,37 @@
+/* ========================================================================== */
+/* Nombre del Miembro: GLCONUTS    (max 10 caracteres)                        */
+/* Nombre del Objeto:  GLCONUTS    (PGM CL ejecutor pruebas unitarias)        */
+/* DESCRIPCION: Compila (si aplica) y ejecuta GLNEGUT1 sobre GLNEG001         */
+/* Objetivo: Evidencia pruebas unitarias de reglas clave en PUB400            */
+/* Uso: 1) Subir GLNEGUT1.RPGLE y GLCONUTS.CLLE a QTALLERCP1                  */
+/*      2) CRTCLPGM PGM(MILIB/GLCONUTS) SRCMBR(GLCONUTS)                      */
+/*      3) CALL PGM(MILIB/GLCONUTS) PARM('MILIB' 'USUARIO')                   */
+/*          MILIB   = libreria objetos (ej. FMRAMIREZ1)                       */
+/*         USUARIO = perfil home IFS (ej. FMRAMIREZ)                          */
+/* Salida: /home/USUARIO/salida/glnegut1.log                                  */
+/* Proyecto: Conciliacion GLBLN - Taller IBM i - 2026-06-29                   */
+/* ========================================================================== */
+
+             PGM        PARM(&LIB &USER)
+
+             DCL        VAR(&LIB) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&USER) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&SRC) TYPE(*CHAR) LEN(10) VALUE('QTALLERCP1')
+             DCL        VAR(&MSG) TYPE(*CHAR) LEN(256)
+
+             CHGVAR     VAR(&LIB) VALUE(%SST(&LIB 1 10))
+             CHGVAR     VAR(&USER) VALUE(%SST(&USER 1 10))
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONUTS ejecutando GLNEGUT1 lib ')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT &LIB)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CALL       PGM(&LIB/GLNEGUT1) PARM(&USER)
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONUTS finalizado ver ')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT '/home/')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT %TRIM(&USER))
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT '/salida/glnegut1.log')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             ENDPGM

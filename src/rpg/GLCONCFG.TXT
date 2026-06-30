@@ -1,0 +1,37 @@
+# ============================================================================
+# Nombre del Objeto: GLCONCFG.TXT                                              
+# DESCRIPCION: Parametros de referencia para ejecucion de GLRPT001.            
+# Objetivo: Documentar valores sugeridos de banco, sucursal, moneda, rango de  
+#           uentas, fecha de proceso, ruta IFS, ambiente y tolerancia.       
+# Tipo de Objeto: Configuracion operativa (texto plano)                        
+# Restricciones: Libreria SQL y perfil IFS pueden diferir (ej. FMRAMIREZ1 vs FM
+# Hecho por: Fernando Ramirez, mediante Agentes de IA                          
+# Fecha: 2026-06-08                                                            
+# Proyecto: Conciliacion GLBLN - Taller IBM i                                  
+# ============================================================================
+#
+# Parametros de ejecucion - Conciliacion GLBLN
+# Formato: campo=valor
+#
+# Estos valores son referencia para el CALL al programa GLRPT001.
+# Ajustar BANCO, SUCURSAL, MONEDA y rutas IFS segun el entorno PUB400.
+
+BANCO=01
+SUCURSAL=001
+MONEDA=USD
+CUENTA_DESDE=11000000
+CUENTA_HASTA=11999999
+FECHA_PROCESO=2026-05-19
+RUTA_IFS=/home/FMRAMIREZ/salida/conciliacion_glbln.json
+AMBIENTE=QA
+TOLERANCIA=1.00
+MODO=PRUEBA
+
+# Ejemplo de invocacion en IBM i:
+#
+# CALL PGM(MILIB/GLRPT001) PARM(
+#   ('01') ('001') ('USD')
+#   ('11000000') ('11999999')
+#   ('2026-05-19')
+#   ('/home/FMRAMIREZ/salida/conciliacion_glbln.json')
+#   ('QA') (1.00) ('PRUEBA'))

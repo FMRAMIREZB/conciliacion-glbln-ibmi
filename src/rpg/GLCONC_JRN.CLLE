@@ -1,0 +1,391 @@
+/* ========================================================================== */
+/* Nombre del Objeto: GLCONC_JRN                                              */
+/* DESCRIPCION: Crea journal GLCONJRN y journaliza tablas de                  */
+/*             Estructura_BD_2.sql                                            */
+/* Objetivo: Evitar SQL7008 en DELETE/INSERT bajo control de compromiso       */
+/* Tipo de Objeto: Programa CL (CLLE)                                         */
+/* Uso:                                                                       */
+/*  1. Ejecutar src/Estructura_BD_2.sql                                       */
+/*  2. Subir este miembro a QTALLERCP1 como GLCONC_JRN (tipo CLLE)            */
+/*  3. CRTCLPGM PGM(MILIB/GLCONJRN) SRCFILE(MILIB/QTALLERCP1)                 */
+/*     SRCMBR(GLCONC_JRN)                                                     */
+/*  4. CALL PGM(MILIB/GLCONJRN) PARM('MILIB')                                 */
+/*  5. Ejecutar src/rpg/GLCONC_DEMO.sql                                       */
+/* Nota: Reemplazar MILIB por la libreria del taller (ej. FMRAMIREZ1).        */
+/* Idempotente: ignora receptor/journal existente y tablas ya journalizadas.  */
+/* Si STRJRNPF falla con CPF7031 (otro journal), ejecutar ENDJRNPF antes.     */
+/* Fecha: 2026-06-08                                                          */
+/* Proyecto: Conciliacion GLBLN - Taller IBM i                                */
+/* ========================================================================== */
+
+             PGM        PARM(&LIB)
+
+             DCL        VAR(&LIB) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&JRN) TYPE(*CHAR) LEN(10) VALUE('GLCONJRN')
+             DCL        VAR(&RCV) TYPE(*CHAR) LEN(10) VALUE('GLCONJRCV')
+             DCL        VAR(&MSG) TYPE(*CHAR) LEN(256)
+
+             CHGVAR     VAR(&LIB) VALUE(%SST(&LIB 1 10))
+
+/* --- Receptor de journal ---                                                */
+             CRTJRNRCV  JRNRCV(&LIB/&RCV) THRESHOLD(100000) +
+                          TEXT('Receptor journal conciliacion GLBLN')
+             MONMSG     MSGID(CPF7033) EXEC(GOTO CMDLBL(CRTJRN))
+
+/* --- Journal ---                                                            */
+ CRTJRN:     CRTJRN     JRN(&LIB/&JRN) JRNRCV(&LIB/&RCV) MNGRCV(*SYSTEM) +
+                          TEXT('Journal tablas conciliacion GLBLN')
+             MONMSG     MSGID(CPF7032) EXEC(GOTO CMDLBL(JRNPF))
+
+/* --- Journalizar tablas (114 de Estructura_BD_2.sql) ---                    */
+             CHGVAR     VAR(&MSG) VALUE('Journalizando tablas en ' *CAT &LIB)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+ JRNPF:
+             STRJRNPF FILE(&LIB/CUMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/ACMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/GLMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/GLBLN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/TRANS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/TTRAN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/TRDSC) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNOFT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNOFC) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/MLNCT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/MLNOT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/HSNOT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/HEAD) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/MSSGS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/HOLYD) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/APCLS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/RATES) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/RTRNS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/HLHIS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/PRENA) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/PRENS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/UT500) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/UT510) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/MICRF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/IBSDD) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/IBTBL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CIFXF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLCNT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLBRN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLNUM) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLTAX) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CUMAD) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CUMPR) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CUMSD) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/SPINS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/STPMT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/UNCOL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/PBTRN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/OFMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/RCLNB) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/TLMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/TDRCR) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/AUDIT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CHMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CHPER) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CHSTS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DEVOL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CMRIN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/OVDRF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLMSG) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLRTE) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLDEV) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DEALS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DLPMT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DLDRF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DLSDE) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DLCLP) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DDCPN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DLITP) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CDRTE) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLDLS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCDOC) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCFIN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCFMT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCADM) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCCOV) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCDIN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCSTA) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLLCP) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLRLC) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DCMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/APPRV) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LCFEE) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLRCO) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/INPUT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/GLBSE) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/GLFIN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CCDSC) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/INPT2) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/NXINP) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/BUMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/ROCOL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/RCOLL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LNECR) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/FIXMS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CLSMS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LOCMS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLFIX) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/BAVEN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/BAPRC) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/BAMOR) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/BAINP) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/BAHIS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLBAF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLBAP) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/FIWRT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/POFED) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/POSWF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/POTLX) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/SWITF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/CNTRLPRF) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/PLPCR) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/PLPRD) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/PLGRT) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DPMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DPDTL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/IFMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/IFDTL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DPGLN) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/LIMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DIMST) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/DITBL) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+             STRJRNPF FILE(&LIB/USERS) JRN(&LIB/&JRN) +
+                          IMAGES(*AFTER) OMTJRNE(*OPNCLO)
+             MONMSG     MSGID(CPF7030 CPF9812)
+
+             CHGVAR     VAR(&MSG) VALUE('Journal GLCONJRN listo en ' *CAT &LIB)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             ENDPGM

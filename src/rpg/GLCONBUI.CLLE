@@ -1,0 +1,146 @@
+/* ========================================================================== */
+/* Nombre del Miembro: GLCONBUI    (max 10 caracteres)                        */
+/* Nombre del Objeto:  GLCONBUI    (PGM CL build conciliacion GLBLN)          */
+/* DESCRIPCION: Compila y enlaza el aplicativo de conciliacion GLBLN          */
+/* Objetivo: Regenerar modulos, SRVPGM y GLRPT001 en un solo paso             */
+/* Uso: 1) Subir fuentes y copybooks a QTALLERCP1 (miembro tipo CLLE)         */
+/*      2) CRTCLPGM PGM(MILIB/GLCONBUI) SRCMBR(GLCONBUI)                      */
+/*      3) CALL PGM(MILIB/GLCONBUI) PARM('MILIB')                             */
+/* Nota: Reemplazar MILIB por libreria del taller (ej. FMRAMIREZ1).           */
+/*       Sin MONMSG en compilaciones: cualquier error detiene el job.         */
+/*       Revisar el ultimo SNDPGMMSG y el spool generado en la corrida.       */
+/* Orden: GLUTIL -> GLDAT -> GLNEG -> GLNEGUT1                                */
+/*        -> GLOUT -> GLRPT001 -> GLCONUTS                                    */
+/* Proyecto: Conciliacion GLBLN - Taller IBM i - 2026-06-08                   */
+/* ========================================================================== */
+
+             PGM        PARM(&LIB)
+
+             DCL        VAR(&LIB) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&SRC) TYPE(*CHAR) LEN(10) VALUE('QTALLERCP1')
+             DCL        VAR(&MSG) TYPE(*CHAR) LEN(256)
+
+             CHGVAR     VAR(&LIB) VALUE(%SST(&LIB 1 10))
+
+/* --- Limpiar spool previo para facilitar lectura de errores --------------- */
+             DLTSPLF    FILE(*SELECT)
+             MONMSG     MSGID(CPF0000)
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI inicio lib ')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT &LIB)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+/* --- GLUTIL001: modulo + SRVPGM ------------------------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLUTIL001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSQLRPGI OBJ(&LIB/GLUTIL001) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLUTIL001) OBJTYPE(*MODULE) +
+                          COMMIT(*NONE) DBGVIEW(*SOURCE) +
+                          RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL) +
+                          COMPILEOPT('OPTION(*SECLVL *XREF)') +
+                          TEXT('Modulo utilidades conciliacion')
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI enlazando SRVPGM GLUTIL001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSRVPGM  SRVPGM(&LIB/GLUTIL001) MODULE(&LIB/GLUTIL001) +
+                          EXPORT(*ALL) +
+                          TEXT('Servicio utilidades conciliacion GLBLN')
+
+/* --- GLDAT001: modulo + SRVPGM -------------------------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLDAT001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSQLRPGI OBJ(&LIB/GLDAT001) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLDAT001) OBJTYPE(*MODULE) +
+                          COMMIT(*NONE) DBGVIEW(*SOURCE) +
+                          RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL) +
+                          COMPILEOPT('OPTION(*SECLVL *XREF)') +
+                          TEXT('Modulo acceso datos GLBLN')
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI enlazando SRVPGM GLDAT001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSRVPGM  SRVPGM(&LIB/GLDAT001) MODULE(&LIB/GLDAT001) +
+                          EXPORT(*ALL) ACTGRP(*CALLER) +
+                          TEXT('Servicio datos GLBLN')
+
+/* --- GLNEG001: modulo + SRVPGM -------------------------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLNEG001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTRPGMOD  MODULE(&LIB/GLNEG001) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLNEG001) DBGVIEW(*SOURCE) +
+                          OPTION(*SRCSTMT *SECLVL *XREF) +
+                          TEXT('Modulo reglas negocio conciliacion')
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI enlazando SRVPGM GLNEG001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSRVPGM  SRVPGM(&LIB/GLNEG001) MODULE(&LIB/GLNEG001) +
+                          BNDSRVPGM(&LIB/GLUTIL001) EXPORT(*ALL) +
+                          ACTGRP(*CALLER) +
+                          TEXT('Servicio negocio GLBLN')
+
+/* --- GLNEGUT1: pruebas unitarias negocio ---------------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLNEGUT1')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTRPGMOD  MODULE(&LIB/GLNEGUT1) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLNEGUT1) DBGVIEW(*SOURCE) +
+                          OPTION(*SRCSTMT *SECLVL *XREF) +
+                          TEXT('Pruebas unitarias GLNEG001')
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI enlazando PGM GLNEGUT1')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTPGM     PGM(&LIB/GLNEGUT1) MODULE(&LIB/GLNEGUT1) +
+                          BNDSRVPGM(&LIB/GLNEG001 &LIB/GLUTIL001) +
+                          ACTGRP(*CALLER) +
+                          TEXT('Unit tests conciliacion GLNEG001')
+
+/* --- GLOUT001: solo modulo (enlaza en CRTPGM) ----------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLOUT001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSQLRPGI OBJ(&LIB/GLOUT001) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLOUT001) OBJTYPE(*MODULE) +
+                          COMMIT(*NONE) DBGVIEW(*SOURCE) +
+                          RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL) +
+                          COMPILEOPT('OPTION(*SECLVL *XREF)') +
+                          TEXT('Modulo salida JSON IFS')
+
+/* --- GLRPT001: modulo + PGM ----------------------------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLRPT001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTSQLRPGI OBJ(&LIB/GLRPT001) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLRPT001) OBJTYPE(*MODULE) +
+                          COMMIT(*NONE) DBGVIEW(*SOURCE) +
+                          RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL) +
+                          COMPILEOPT('OPTION(*SECLVL *XREF)') +
+                          TEXT('Modulo principal conciliacion GLBLN')
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI enlazando PGM GLRPT001')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTPGM     PGM(&LIB/GLRPT001) +
+                          MODULE(&LIB/GLRPT001 &LIB/GLOUT001) +
+                          BNDSRVPGM(&LIB/GLDAT001 &LIB/GLNEG001 +
+                          &LIB/GLUTIL001) ACTGRP(*CALLER) +
+                          TEXT('Conciliacion GLBLN')
+
+/* --- GLCONUTS: invocador CL pruebas unitarias ----------------------------- */
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI compilando GLCONUTS')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CRTCLPGM   PGM(&LIB/GLCONUTS) SRCFILE(&LIB/&SRC) +
+                          SRCMBR(GLCONUTS) +
+                          TEXT('Ejecutor pruebas unitarias GLNEG001')
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONBUI finalizado OK lib ')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT &LIB)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             ENDPGM

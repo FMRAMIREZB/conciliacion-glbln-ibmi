@@ -1,0 +1,37 @@
+/* ========================================================================== */
+/* Nombre del Objeto: GLCONC_IFS                                              */
+/* DESCRIPCION: Crea directorio IFS de salida para JSON y bitacora GLRPT001   */
+/* Objetivo: Preparar /home/USUARIO/salida antes del CALL a GLRPT001          */
+/* Uso: 1) Subir miembro GLCONC_IFS (CLLE) a QTALLERCP1                       */
+/*      2) CRTCLPGM PGM(MILIB/GLCONIFS) SRCMBR(GLCONC_IFS)                    */
+/*      3) CALL PGM(MILIB/GLCONIFS) PARM('MILIB')                             */
+/* Nota: PARM es el PERFIL IBM i (home IFS), no la libreria SQL.              */
+/*       Ejemplo PUB400: lib FMRAMIREZ1, perfil FMRAMIREZ -> PARM('FMRAMIREZ')*/
+/*       Ruta resultante: /home/FMRAMIREZ/salida/                             */
+/* Idempotente: mkdir -p no falla si el directorio ya existe.                 */
+/* Proyecto: Conciliacion GLBLN - Taller IBM i - 2026-06-08                   */
+/* ========================================================================== */
+
+             PGM        PARM(&USER)
+
+             DCL        VAR(&USER) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&DIR)  TYPE(*CHAR) LEN(128)
+             DCL        VAR(&CMD)  TYPE(*CHAR) LEN(256)
+             DCL        VAR(&MSG)  TYPE(*CHAR) LEN(256)
+
+             CHGVAR     VAR(&USER) VALUE(%SST(&USER 1 10))
+             CHGVAR     VAR(&DIR)  VALUE('/home/' *CAT %TRIM(&USER) +
+                          *TCAT '/salida')
+             CHGVAR     VAR(&CMD)  VALUE('mkdir -p ' *CAT &DIR)
+
+             STRQSH     CMD(&CMD)
+             MONMSG     MSGID(QSH0000) EXEC(GOTO CMDLBL(ENDOK))
+
+             CHGVAR     VAR(&CMD) VALUE('chmod 755 ' *CAT &DIR)
+             STRQSH     CMD(&CMD)
+             MONMSG     MSGID(QSH0000)
+
+ ENDOK:      CHGVAR     VAR(&MSG) VALUE('Directorio IFS listo: ' *CAT &DIR)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             ENDPGM

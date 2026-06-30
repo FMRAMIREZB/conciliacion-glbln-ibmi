@@ -1,0 +1,66 @@
+/* ========================================================================== */
+/* Nombre del Miembro: GLCONRUN    (max 10 caracteres)                        */
+/* Nombre del Objeto:  GLCONRUN    (PGM CL invocador de GLRPT001)             */
+/* DESCRIPCION: Ejecuta conciliacion GLBLN con parametros demo del taller     */
+/* Objetivo: Llamar GLRPT001 pasando tolerancia como *DEC (packed 15,2)       */
+/* Uso: 1) Subir miembro GLCONRUN (CLLE) a QTALLERCP1                         */
+/*      2) CRTCLPGM PGM(MILIB/GLCONRUN) SRCMBR(GLCONRUN)                      */
+/*      3) CALL PGM(MILIB/GLCONRUN) PARM('MILIB' 'USUARIO')                   */
+/*         MILIB   = libreria SQL/objetos (ej. FMRAMIREZ1)                    */
+/*         USUARIO = perfil/home IFS (ej. FMRAMIREZ, sin el "1")              */
+/* Tolerancia fija 1.00 en &TOLER (*DEC 15 2) para GLRPT001 packed(15:2)      */
+/* PARM: usar DCL *CHAR con longitud exacta del Pi RPG (evita desalineacion)  */
+/* Proyecto: Conciliacion GLBLN - Taller IBM i - 2026-06-08                   */
+/* ========================================================================== */
+
+             PGM        PARM(&LIB &USER)
+
+             DCL        VAR(&LIB) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&USER) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&BANCO) TYPE(*CHAR) LEN(20) +
+                          VALUE('01')
+             DCL        VAR(&SUCUR) TYPE(*CHAR) LEN(20) +
+                          VALUE('001')
+             DCL        VAR(&MONEDA) TYPE(*CHAR) LEN(20) +
+                          VALUE('USD')
+             DCL        VAR(&DESDE) TYPE(*CHAR) LEN(24) +
+                          VALUE('11000000')
+             DCL        VAR(&HASTA) TYPE(*CHAR) LEN(24) +
+                          VALUE('11999999')
+             DCL        VAR(&FECHA) TYPE(*CHAR) LEN(10) +
+                          VALUE('2026-05-19')
+             DCL        VAR(&RUTA) TYPE(*CHAR) LEN(252)
+             DCL        VAR(&AMBIENTE) TYPE(*CHAR) LEN(10) +
+                          VALUE('QA')
+             DCL        VAR(&MODO) TYPE(*CHAR) LEN(10) +
+                          VALUE('PRUEBA')
+             DCL        VAR(&TOLER) TYPE(*DEC) LEN(15 2) VALUE(1.00)
+             DCL        VAR(&TOLTXT) TYPE(*CHAR) LEN(20)
+             DCL        VAR(&MSG) TYPE(*CHAR) LEN(256)
+
+             CHGVAR     VAR(&LIB) VALUE(%SST(&LIB 1 10))
+             CHGVAR     VAR(&USER) VALUE(%SST(&USER 1 10))
+
+/* Ruta base: GLRPT001 deriva conciliacion_<id>.json IFS (RF-06)              */
+             CHGVAR     VAR(&RUTA) VALUE('/home/' *CAT %TRIM(&USER) +
+                          *TCAT '/salida/conciliacion_glbln.json')
+
+             CHGVAR     VAR(&TOLTXT) VALUE(&TOLER)
+             CHGVAR     VAR(&MSG) VALUE('GLCONRUN tolerancia DEC=')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT &TOLTXT)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONRUN CALL GLRPT001 lib ')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT &LIB)
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT ' ruta ')
+             CHGVAR     VAR(&MSG) VALUE(&MSG *BCAT &RUTA)
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             CALL       PGM(&LIB/GLRPT001) PARM(&BANCO &SUCUR &MONEDA +
+                          &DESDE &HASTA &FECHA &RUTA &AMBIENTE &TOLER +
+                          &MODO &USER)
+
+             CHGVAR     VAR(&MSG) VALUE('GLCONRUN finalizado OK')
+             SNDPGMMSG  MSG(&MSG) TOPGMQ(*EXT)
+
+             ENDPGM

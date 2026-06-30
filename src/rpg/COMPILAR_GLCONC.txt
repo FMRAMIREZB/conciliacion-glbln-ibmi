@@ -1,0 +1,258 @@
+# ============================================================================
+# Nombre del Objeto: COMPILAR_GLCONC.txt                                       
+# DESCRIPCION: Guia de compilacion y despliegue del proceso de conciliacion GLB
+# Objetivo: Documentar orden de creacion de modulos ILE, servicio y programa pr
+# Tipo de Objeto: Documentacion operativa (comandos CL)                        
+# Restricciones: Reemplazar FMRAMIREZ1 por la libreria del taller (ej. FMRAMIRE
+# Prerequisitos:                                                               
+#   1. Crear tablas DDL (ver seccion "P. Base de datos" mas abajo):
+#        PUB400: src/Estructura_BD_2_80.sql -> miembro ESTRUCBD80 + RUNSQLSTM
+#        Otros:  src/Estructura_BD_2.sql (lineas largas; STRSQL o RUNSQLSTM)
+#   2. Journalizar tablas (evita SQL7008 en GLCONC_DEMO.sql):
+#        Subir src/rpg/GLCONC_JRN.CLLE a QTALLERCP1 (miembro GLCONC_JRN, tipo CLLE)
+#        CRTCLPGM PGM(FMRAMIREZ1/GLCONJRN) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLCONC_JRN)
+#        CALL PGM(FMRAMIREZ1/GLCONJRN) PARM('FMRAMIREZ1')
+#   3. Cargar datos demo (tres escenarios GLRPT001):
+#        PUB400: src/rpg/GLCONC_DEMO_80.sql -> miembro GLCONCDMO + RUNSQLSTM
+#        Otros:  src/rpg/GLCONC_DEMO.sql (STRSQL o RUNSQLSTM)
+#   4. Crear directorio IFS de salida (JSON + .log):
+#        Subir src/rpg/GLCONC_IFS.CLLE a QTALLERCP1 (miembro GLCONC_IFS, CLLE)
+#        CRTCLPGM PGM(FMRAMIREZ1/GLCONIFS) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLCONC_IFS)
+#        CALL PGM(FMRAMIREZ1/GLCONIFS) PARM('FMRAMIREZ')
+#      Alternativa manual (5250 o QSH):
+#        STRQSH CMD('mkdir -p /home/FMRAMIREZ/salida')
+#   5. Copiar fuentes de src/rpg/ al archivo QTALLERCP1
+# Hecho por: Fernando Ramirez, mediante Agentes de IA                          
+# Fecha: 2026-06-08                                                            
+# Proyecto: Conciliacion GLBLN - Taller IBM i                                  
+# ============================================================================
+#
+# Compilacion y despliegue - Conciliacion GLBLN (IBM i V7R4+)
+#
+# Reemplazar FMRAMIREZ1 por la libreria asignada (ej. FMRAMIREZ1 en PUB400).
+# IMPORTANTE: la libreria SQL (FMRAMIREZ1) NO coincide con el home IFS del perfil.
+#   - Objetos Db2/RPG: libreria FMRAMIREZ1
+#   - Rutas IFS:       /home/FMRAMIREZ/...  (perfil = FMRAMIREZ, sin el "1")
+
+# --- P. Base de datos (prerequisito; una vez o tras cambio DDL) ---
+# Ajustar SET SCHEMA en la primera linea ejecutable del fuente SQL si la
+# libreria asignada no es FMRAMIREZ1.
+#
+# PUB400 (recomendado; lineas <= 80 columnas):
+#   Subir src/Estructura_BD_2_80.sql a QTALLERCP1 (miembro ESTRUCBD80, SQL)
+#   RUNSQLSTM SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(ESTRUCBD80) +
+#            COMMIT(*NONE) ERRLVL(20) NAMING(*SYS)
+#
+# Entornos con fuente de lineas largas (equivalente funcional):
+#   Subir src/Estructura_BD_2.sql a QTALLERCP1 (miembro ESTRUCBD2, SQL)
+#   RUNSQLSTM SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(ESTRUCBD2) +
+#            COMMIT(*NONE) ERRLVL(20) NAMING(*SYS)
+#
+# Validar tablas creadas: STRSQL o DSPFD TYPE(*TABLE) FILE(FMRAMIREZ1/*ALL)
+
+# --- P2. Datos demo (tras journal; tolerancia GLCONRUN = 1.00) ---
+# Ajustar SET SCHEMA si la libreria no es FMRAMIREZ1.
+#
+# PUB400 (recomendado; lineas <= 80 columnas):
+#   Subir src/rpg/GLCONC_DEMO_80.sql a QTALLERCP1 (miembro GLCONCDMO, SQL)
+#   RUNSQLSTM SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLCONCDMO) +
+#            COMMIT(*NONE) ERRLVL(20) NAMING(*SYS)
+#
+# Entornos con fuente de lineas largas:
+#   Subir src/rpg/GLCONC_DEMO.sql a QTALLERCP1 (miembro GLCONCDMO, SQL)
+#   RUNSQLSTM SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLCONCDMO) +
+#            COMMIT(*NONE) ERRLVL(20) NAMING(*SYS)
+#
+# Regenerar copia 80 cols: python3 scripts/formatear_glconc_demo_80.py
+
+# --- 0. Compilacion completa (recomendado tras cada cambio de fuentes) ---
+# Subir src/rpg/GLCONBUI.CLLE a QTALLERCP1 (miembro GLCONBUI, tipo CLLE)
+# CRTCLPGM PGM(FMRAMIREZ1/GLCONBUI) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLCONBUI)
+# CALL PGM(FMRAMIREZ1/GLCONBUI) PARM('FMRAMIREZ1')
+#
+# GLCONBUI ejecuta DLTSPLF FILE(*SELECT) al inicio, compila en orden y
+# detiene el job ante el primer error (sin MONMSG que oculte fallos).
+# El ultimo SNDPGMMSG indica el fuente/paso en curso; el spool nuevo muestra el detalle.
+# --- 1. Copybooks compartidos (no se compilan solos) ---
+# Subir a QTALLERCP1 antes de compilar modulos:
+#   GLCONH  - constantes C_* y plantillas T_* (Documentacion_IBMi/estandar_codigo_rpg.md)
+#   GLCONPR  - prototipos ExtProc para GLRPT001 (despues de GLCONH)
+#   GLCONPRU - prototipos servicio GLUTIL001 (GLOUT001 y otros NOMAIN)
+#
+# GLDAT001 usa likeds de plantillas GLCONH en parametros y locales de proc;
+# no requiere estructuras wrk* duplicadas en el copybook.
+#
+# Reglas prototipos Dcl-Pr con ExtProc:
+#   - Con parametros: retorno ANTES de ExtProc (int(10) ExtProc('DatLoadPartidas'))
+#   - ExtProc en MAYUSCULAS (export SRVPGM: DATINITWORKTABLES, no DatInitWorkTables)
+#   - No poner tipo despues de ExtProc (RNF3742); no usar Dcl-Pi/End-Pi
+#   - Tras cambiar GLCONPR: recompilar GLRPT001 antes de CRTPGM
+#   - Formato libre normal desde columna 1, sin tabular a col 6
+#   - Encabezados // permitidos en miembros **FREE
+#   - SQLRPGLE: /COPY + RPGPPOPT LV2 en CRTSQLRPGI
+#   - Ver: https://www.nicklitten.com/what-is-the-difference-between-copy-and-include-in-sql-rpgle/
+#
+# GLDAT001: /copy QTALLERCP1,GLCONH; host SQL via likeds en parms y locales
+#
+# Parametros comunes SQLRPGLE:
+#   RPGPPOPT(*LVL2)           - preprocesador RPG antes del precompilador SQL
+#   OPTION(*XREF *SECLVL)     - cross-reference SQL + texto nivel 2 (reason codes)
+#   COMPILEOPT('OPTION(*SECLVL *XREF)') - listado RPG de la segunda fase
+#   OUTPUT(*PRINT)            - opcional: listado completo del precompilador SQL
+#
+# Parametros comunes RPGLE puro (CRTRPGMOD):
+#   Sin RPGPPOPT (solo aplica a CRTSQLRPGI / precompilador SQL)
+#   /COPY se expande nativamente al compilar el modulo
+#   OPTION(*SRCSTMT *SECLVL *XREF) - alineado con Ctl-Opt Option(*SrcStmt)
+
+# --- 2. Programa de servicio de utilidades (GLUTIL001.SQLRPGLE) ---
+CRTSQLRPGI OBJ(FMRAMIREZ1/GLUTIL001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLUTIL001)
+  OBJTYPE(*MODULE) COMMIT(*NONE) DBGVIEW(*SOURCE)
+  RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL)
+  COMPILEOPT('OPTION(*SECLVL *XREF)')
+  TEXT('Modulo utilidades conciliacion')
+
+CRTSRVPGM SRVPGM(FMRAMIREZ1/GLUTIL001) MODULE(FMRAMIREZ1/GLUTIL001)
+  EXPORT(*ALL) TEXT('Servicio utilidades conciliacion GLBLN')
+
+# --- 3. Modulos ILE (OBJTYPE *MODULE) ---
+CRTSQLRPGI OBJ(FMRAMIREZ1/GLDAT001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLDAT001)
+  OBJTYPE(*MODULE) COMMIT(*NONE) DBGVIEW(*SOURCE)
+  RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL)
+  COMPILEOPT('OPTION(*SECLVL *XREF)')
+  TEXT('Modulo acceso datos GLBLN')
+
+CRTRPGMOD MODULE(FMRAMIREZ1/GLNEG001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLNEG001)
+  DBGVIEW(*SOURCE) OPTION(*SRCSTMT *SECLVL *XREF)
+  TEXT('Modulo reglas negocio conciliacion')
+
+CRTSQLRPGI OBJ(FMRAMIREZ1/GLOUT001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLOUT001)
+  OBJTYPE(*MODULE) COMMIT(*NONE) DBGVIEW(*SOURCE)
+  RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL)
+  COMPILEOPT('OPTION(*SECLVL *XREF)')
+  TEXT('Modulo salida JSON IFS')
+
+# --- 4. Programas de servicio de modulos exportadores ---
+# Tras cambiar fuentes o GLCONPR: recompilar *MODULE y repetir CRTSRVPGM
+CRTSRVPGM SRVPGM(FMRAMIREZ1/GLDAT001) MODULE(FMRAMIREZ1/GLDAT001)
+  EXPORT(*ALL) ACTGRP(*CALLER) TEXT('Servicio datos GLBLN')
+
+CRTSRVPGM SRVPGM(FMRAMIREZ1/GLNEG001) MODULE(FMRAMIREZ1/GLNEG001)
+  BNDSRVPGM(FMRAMIREZ1/GLUTIL001) EXPORT(*ALL) ACTGRP(*CALLER)
+  TEXT('Servicio negocio GLBLN')
+
+# GLOUT001 NO es SRVPGM; recompilar modulo tras cambiar GLCONPRU (WRITEIFSUTF8)
+CRTSQLRPGI OBJ(FMRAMIREZ1/GLOUT001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLOUT001)
+  OBJTYPE(*MODULE) COMMIT(*NONE) DBGVIEW(*SOURCE)
+  RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL)
+  COMPILEOPT('OPTION(*SECLVL *XREF)')
+  TEXT('Modulo salida JSON IFS')
+
+# --- 5. Programa principal (modulo + enlace) ---
+# IMPORTANTE: resubir GLCONPR y recompilar GLRPT001 si cambian prototipos
+# ACTGRP(*CALLER) en CRTPGM; DFTACTGRP no es parametro valido de CRTPGM
+CRTSQLRPGI OBJ(FMRAMIREZ1/GLRPT001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLRPT001)
+  OBJTYPE(*MODULE) COMMIT(*NONE) DBGVIEW(*SOURCE)
+  RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL)
+  COMPILEOPT('OPTION(*SECLVL *XREF)')
+  TEXT('Modulo principal conciliacion GLBLN')
+
+# GLOUT001 *MODULE en MODULE(); GLDAT/GLNEG/GLUTIL como SRVPGM
+CRTPGM PGM(FMRAMIREZ1/GLRPT001) MODULE(FMRAMIREZ1/GLRPT001 FMRAMIREZ1/GLOUT001)
+  BNDSRVPGM(FMRAMIREZ1/GLDAT001 FMRAMIREZ1/GLNEG001 FMRAMIREZ1/GLUTIL001)
+  ACTGRP(*CALLER) TEXT('Conciliacion GLBLN')
+
+# Alternativa con BNDDIR (*MODULE) si prefiere no usar SRVPGM de capas:
+# CRTBNDDIR BNDDIR(FMRAMIREZ1/GLCONBND) TEXT('Modulos ILE conciliacion GLBLN')
+# ADDBNDDIRE BNDDIR(FMRAMIREZ1/GLCONBND) OBJ(
+#   (FMRAMIREZ1/GLDAT001 *MODULE) +
+#   (FMRAMIREZ1/GLNEG001 *MODULE) +
+#   (FMRAMIREZ1/GLOUT001 *MODULE))
+# CRTPGM PGM(FMRAMIREZ1/GLRPT001) MODULE(FMRAMIREZ1/GLRPT001)
+#   BNDDIR(FMRAMIREZ1/GLCONBND) BNDSRVPGM(FMRAMIREZ1/GLUTIL001) ACTGRP(*CALLER)
+
+# --- 6. Diagnostico de enlace (CPD5D02 / CPF5D04) ---
+# CPF5D04 "Not authorized to QYPSSRVS in QSYS" es RUIDO del enlazador IBM:
+#   al no resolver un simbolo, busca en BNDDIR del sistema (QUSAPIBD) y
+#   reporta falta de autoridad en SRVPGM restringidos. IGNORAR ese mensaje.
+#   Enfocarse en CPD5D02 (simbolo real sin definicion).
+#   Ref: https://www.ibm.com/support/pages/explanation-error-messages-cpd5d02-and-cpf5d04-when-creating-program-or-service-program
+#
+# Verificar que existen *MODULE (no *PGM) antes de CRTPGM:
+#   WRKOBJ OBJ(FMRAMIREZ1/GLDAT001) OBJTYPE(*MODULE)
+#   WRKOBJ OBJ(FMRAMIREZ1/GLNEG001) OBJTYPE(*MODULE)
+#   WRKOBJ OBJ(FMRAMIREZ1/GLOUT001) OBJTYPE(*MODULE)
+#   WRKOBJ OBJ(FMRAMIREZ1/GLRPT001) OBJTYPE(*MODULE)
+#   WRKOBJ OBJ(FMRAMIREZ1/GLUTIL001) OBJTYPE(*SRVPGM)
+#
+# Verificar exports antes de CRTPGM:
+#   DSPSRVPGM SRVPGM(FMRAMIREZ1/GLNEG001) DETAIL(*PROCEXP)
+#     -> debe incluir NEGGENHASHCUENTA (NegGenHashCuenta, dos G)
+#   DSPSRVPGM SRVPGM(FMRAMIREZ1/GLUTIL001) DETAIL(*PROCEXP)
+#     -> debe incluir UTILHASHMD5HEX y WRITEIFSUTF8
+#   DSPMOD MODULE(FMRAMIREZ1/GLOUT001) DETAIL(*IMPORT)
+#     -> import WRITEIFSUTF8 (no WriteIfsUtf8 mixto; recompilar si aparece mixto)
+#
+# Si EXPORT esta vacio: recompilar con OBJTYPE(*MODULE), no *PGM.
+# Si hay *PGM viejo con el mismo nombre, borrarlo antes de recompilar:
+#   DLTPGM PGM(FMRAMIREZ1/GLDAT001)
+#   CRTSQLRPGI OBJ(FMRAMIREZ1/GLDAT001) ... OBJTYPE(*MODULE) ...
+
+# --- 7. Compilacion diagnostica GLDAT001 (si persisten SQL0312) ---
+# Repetir con OUTPUT(*PRINT) y revisar seccion cross-reference del listado:
+# CRTSQLRPGI OBJ(FMRAMIREZ1/GLDAT001) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLDAT001)
+#   OBJTYPE(*MODULE) COMMIT(*NONE) OUTPUT(*PRINT) DBGVIEW(*SOURCE)
+#   RPGPPOPT(*LVL2) OPTION(*XREF *SECLVL)
+#   COMPILEOPT('OPTION(*SECLVL *XREF)')
+#   TEXT('Diagnostico GLDAT001')
+
+# --- 8. Ejecucion de prueba ---
+#
+# Opcion A - Invocador CL (tolerancia *DEC 15 2 -> packed(15:2) en GLRPT001):
+# Subir src/rpg/GLCONRUN.CLLE a QTALLERCP1 (miembro GLCONRUN, tipo CLLE)
+# CRTCLPGM PGM(FMRAMIREZ1/GLCONRUN) SRCFILE(FMRAMIREZ1/QTALLERCP1) SRCMBR(GLCONRUN)
+# CALL PGM(FMRAMIREZ1/GLCONRUN) PARM('FMRAMIREZ1' 'FMRAMIREZ')
+#
+# Opcion B - CALL directo (cada valor entre parentesis es un PARM independiente):
+CALL PGM(FMRAMIREZ1/GLRPT001) PARM(
+  ('01')
+  ('001')
+  ('USD')
+  ('11000000')
+  ('11999999')
+  ('2026-05-19')
+  ('/home/FMRAMIREZ/salida/conciliacion_glbln.json')
+  ('QA')
+  (1.00)
+  ('PRUEBA'))
+
+# --- 9. Pruebas unitarias RPG (§15.4 / Revision_IBMi §6.4) ---
+#
+# Fuentes: GLNEGUT1.RPGLE (driver *PGM), GLCONUTS.CLLE (invocador CL)
+# GLCONBUI compila GLNEGUT1 y enlaza con GLNEG001 + GLUTIL001; al final CRTCLPGM GLCONUTS
+#
+# Subir miembros a QTALLERCP1 y recompilar todo:
+# CALL PGM(FMRAMIREZ1/GLCONBUI) PARM('FMRAMIREZ1')
+#
+# Ejecutar suite (sin BD; reglas GLNEG001):
+# CALL PGM(FMRAMIREZ1/GLCONUTS) PARM('FMRAMIREZ1' 'FMRAMIREZ')
+#
+# Evidencia en IFS (descargar al repo para revision):
+# WRKLNK '/home/FMRAMIREZ/salida/glnegut1.log'
+# -> src/JSON Salidas/glnegut1.log
+#
+# Criterio PASS: ultima linea ESTADO OK, fail=0, 25 asserts PASS
+# GLNEGUT1 trunca glnegut1.log en el primer write (REPLACE via WriteIfsUtf8)
+# Suites: PARCIAL 11010101, CONCILIADA 11020101, NO_CONCILIADA 11030101,
+#         NegGenHashCuenta MD5 hex, NegAcumTotales demo
+#
+# --- 10. Verificacion integracion ---
+# Revisar archivo JSON en IFS y bitacora .log en la misma ruta
+# DSPFD TYPE(*MBRLIST) FILE(FMRAMIREZ1/QTALLERCP1)
+
+# Arquitectura:
+# GLRPT001  -> Orquestacion (RF-07 trazabilidad, flujo 7.2)
+# GLDAT001  -> Acceso GLBLN / TRANS / TTRAN / TRDSC (GLCONH)
+# GLNEG001  -> Calculo saldos, diferencias, estados (RF-02, RF-03)
+# GLOUT001  -> JSON + IFS (*MODULE; depende de GLUTIL001, no SRVPGM propio)
+# GLUTIL001 -> Fechas, id ejecucion, IFS UTF-8, log

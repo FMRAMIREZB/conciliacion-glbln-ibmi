@@ -1,0 +1,21 @@
+name: Validar JSON conciliacion
+
+on:
+  push:
+    paths:
+      - 'src/JSON Salidas/**'
+      - 'scripts/validar_json_conciliacion.py'
+      - 'src/rpg/**'
+  pull_request:
+    paths:
+      - 'src/JSON Salidas/**'
+      - 'scripts/validar_json_conciliacion.py'
+      - 'src/rpg/**'
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar JSON demo conciliacion GLBLN
+        run: python3 scripts/validar_json_conciliacion.py "src/JSON Salidas/conciliacion_20260630_033459_001.json"
